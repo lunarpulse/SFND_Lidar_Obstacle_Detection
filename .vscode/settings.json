@@ -53,5 +53,10 @@
         "typeindex": "cpp",
         "typeinfo": "cpp",
         "utility": "cpp"
-    }
+    },
+    "python.autoComplete.extraPaths": [
+        "/home/lunarpulse/catkin_ws/devel/lib/python2.7/dist-packages",
+        "/opt/ros/kinetic/lib/python2.7/dist-packages"
+    ],
+    "python.pythonPath": "/home/lunarpulse/miniconda3/envs/deep-learning/bin/python"
 }

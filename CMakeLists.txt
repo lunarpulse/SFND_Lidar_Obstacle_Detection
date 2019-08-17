@@ -23,3 +23,7 @@ target_link_libraries (quizRansac2D ${PCL_LIBRARIES})
 
 add_executable (quizRansac3D src/quiz/ransac/ransac3d.cpp src/render/render.cpp src/processPointClouds.cpp)
 target_link_libraries (quizRansac3D ${PCL_LIBRARIES})
+
+add_executable (quizCluster src/quiz/cluster/cluster.cpp src/render/render.cpp)
+target_link_libraries (quizCluster ${PCL_LIBRARIES})
+
