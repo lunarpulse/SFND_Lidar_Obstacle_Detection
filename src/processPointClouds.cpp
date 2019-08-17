@@ -31,25 +31,47 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     pcl::VoxelGrid<PointT> vg;
     typename pcl::PointCloud<PointT>::Ptr cloudFiltered (new pcl::PointCloud<PointT>);
     vg.setInputCloud(cloud);
-    vg.setLeafSize(filterRes, filterRes,filterRes);
+    vg.setLeafSize(filterRes, filterRes, filterRes);
     vg.filter(*cloudFiltered);
 
     typename pcl::PointCloud<PointT>::Ptr cloudRegion (new pcl::PointCloud<PointT>);
-    pcl::CropBox<PointT> cb(true);
+/*     pcl::CropBox<PointT> cb(true);
     cb.setMin(minPoint);
     cb.setMax(maxPoint);
     cb.setInputCloud(cloudFiltered);
     cb.filter(*cloudRegion);
 
+    typename pcl::ConditionOr<PointT>::Ptr range_cond (new pcl::ConditionOr<PointT> ()); 
+    range_cond->addComparison (typename pcl::FieldComparison<PointT>::Ptr (new pcl::FieldComparison<PointT>("x", pcl::ComparisonOps::LT, minPoint.x())));
+    range_cond->addComparison (typename pcl::FieldComparison<PointT>::Ptr (new pcl::FieldComparison<PointT>("x", pcl::ComparisonOps::GT, maxPoint.x())));
+    range_cond->addComparison (typename pcl::FieldComparison<PointT>::Ptr (new pcl::FieldComparison<PointT>("y", pcl::ComparisonOps::LT, minPoint.y())));
+    range_cond->addComparison (typename pcl::FieldComparison<PointT>::Ptr (new pcl::FieldComparison<PointT>("y", pcl::ComparisonOps::GT, maxPoint.y())));
+    range_cond->addComparison (typename pcl::FieldComparison<PointT>::Ptr (new pcl::FieldComparison<PointT>("z", pcl::ComparisonOps::LT, minPoint.z())));
+    range_cond->addComparison (typename pcl::FieldComparison<PointT>::Ptr (new pcl::FieldComparison<PointT>("z", pcl::ComparisonOps::GT, maxPoint.z())));
+
+    pcl::ConditionalRemoval<PointT> range_filt;
+    range_filt.setInputCloud(cloudFiltered);
+    range_filt.setCondition (range_cond);
+    range_filt.filter(*cloudRegion);
+*/
+      // Create the filtering object
+    pcl::PassThrough<PointT> pass;
+    pass.setInputCloud (cloudFiltered);
+    pass.setFilterFieldName ("y");
+    pass.setFilterLimits (minPoint.y(), maxPoint.y());
+    //pass.setFilterLimitsNegative (true);
+    pass.filter (*cloudRegion);
+
     std::vector<int> index;
 
     pcl::CropBox<PointT> roof(true);
-    roof.setMin(Eigen::Vector4f(-1.5, -1.7,-1,1));
-    roof.setMax(Eigen::Vector4f(2.6, 1.7,-.4,1));
+    roof.setMin(Eigen::Vector4f(-1.5, -1.7,-1, 1));
+    roof.setMax(Eigen::Vector4f(2.6, 1.7,-.4, 1));
+    roof.setInputCloud(cloudRegion);
     roof.filter(index);
 
     pcl::PointIndices::Ptr inliers{new pcl::PointIndices};
-    for (auto &&point : index)
+    for (int point : index)
     {
         inliers->indices.push_back(point);
     }
@@ -64,7 +86,7 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     std::cout << "filtering took " << elapsedTime.count() << " milliseconds" << std::endl;
 
-    return cloud;
+    return cloudRegion;
 
 }
 
@@ -132,14 +154,36 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
 template<typename PointT>
 std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::Clustering(typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance, int minSize, int maxSize)
 {
-
     // Time clustering process
     auto startTime = std::chrono::steady_clock::now();
 
     std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
 
-    // TODO:: Fill in the function to perform euclidean clustering to group detected obstacles
+    // Creating the KdTree object for the search method of the extraction
+    typename pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>);
+    tree->setInputCloud (cloud);
 
+    std::vector<pcl::PointIndices> cluster_indices;
+    pcl::EuclideanClusterExtraction<PointT> ec;
+    ec.setClusterTolerance (clusterTolerance);
+    ec.setMinClusterSize (minSize);
+    ec.setMaxClusterSize (maxSize);
+    ec.setSearchMethod (tree);
+    ec.setInputCloud (cloud);
+    ec.extract (cluster_indices);
+
+    for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+    {
+        typename pcl::PointCloud<PointT>::Ptr cloud_cluster (new pcl::PointCloud<PointT>);
+        for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit)
+            cloud_cluster->points.push_back (cloud->points[*pit]);
+        cloud_cluster->width = cloud_cluster->points.size ();
+        cloud_cluster->height = 1;
+        cloud_cluster->is_dense = true;
+
+        clusters.push_back(cloud_cluster);  
+    }
+    
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     std::cout << "clustering took " << elapsedTime.count() << " milliseconds and found " << clusters.size() << " clusters" << std::endl;
@@ -204,13 +248,3 @@ std::vector<boost::filesystem::path> ProcessPointClouds<PointT>::streamPcd(std::
     return paths;
 
 }
-
-/* 
-template <typename PointT>
-typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(typename pcl::PointCloud<PointT>::Ptr cloudPtr, float filterResolution, Eigen::Vector4f minPoint, Eigen::Vector4f maxPoint)
-{
-    auto startTime = std::chrono::steady_clock::now();
-
-    //Voxel filter
-    pcl::Voxel
-}  */

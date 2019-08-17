@@ -91,7 +91,40 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer)
 
   ProcessPointClouds<pcl::PointXYZI>* pointProcessorI = new ProcessPointClouds<pcl::PointXYZI>();
   pcl::PointCloud<pcl::PointXYZI>::Ptr inputCloud = pointProcessorI->loadPcd("/home/lunarpulse/Documents/SensorFusion/SFND_Lidar_Obstacle_Detection/src/sensors/data/pcd/data_1/0000000000.pcd");
-  renderPointCloud(viewer,inputCloud,"inputCloud");
+  pcl::PointCloud<pcl::PointXYZI>::Ptr filteredCloud = pointProcessorI->FilterCloud(inputCloud, .2,
+    Eigen::Vector4f(-20.0, -6.0, -1.0, 1.0), Eigen::Vector4f(20.0, 6.0, 2.0, 1.0));
+  std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> segmentCloud =
+   pointProcessorI->SegmentPlane(filteredCloud, 100, 0.2);
+  //renderPointCloud(viewer,segmentCloud.first,"obstCloud",Color(1,0,0));
+  auto clusters = pointProcessorI->Clustering(segmentCloud.first, 0.5, 40, 25000);
+  
+  float idR = 0.05f,idG = 0.05f,idB = 0.05f;
+  char idi = 'A';
+  int colour = 0;
+  for (auto cluster : clusters)
+  {
+    switch (colour%3)
+    {
+        case 0:
+            idR += 0.25;
+            break;
+        case 1:
+            idR += 0.25;
+            break;
+        case 2:
+            idR += 0.25;
+            break;
+        default:
+            break;
+    }
+    colour++;
+    std::string idn{ idi++ };
+    auto box = pointProcessorI->BoundingBox(cluster);
+    renderBox( viewer, box, idi, Color(0,0,1), 0.5f);
+    renderPointCloud( viewer, cluster, idn, Color( idR , idG, idB));
+  }
+
+  renderPointCloud(viewer,segmentCloud.second,"planeCloud",Color(0,1,0));
 }
 
 int main (int argc, char** argv)
