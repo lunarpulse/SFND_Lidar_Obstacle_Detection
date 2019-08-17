@@ -52,7 +52,16 @@
         "tuple": "cpp",
         "typeindex": "cpp",
         "typeinfo": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "algorithm": "cpp",
+        "cfenv": "cpp",
+        "valarray": "cpp",
+        "iterator": "cpp",
+        "map": "cpp",
+        "memory_resource": "cpp",
+        "random": "cpp",
+        "set": "cpp",
+        "string": "cpp"
     },
     "python.autoComplete.extraPaths": [
         "/home/lunarpulse/catkin_ws/devel/lib/python2.7/dist-packages",
